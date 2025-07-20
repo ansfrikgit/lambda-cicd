@@ -1,27 +1,25 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'S3 Bucket For Our CICD PR with env tag'
+Description: 'S3 bucket for our CICD PR'
 
-Parameters: #define input parameters for our template
- Environment:  # first oue named env # we named it env bec we want to make test env 
-   Type : String # env p is type string wich expecting string 
-   Default: test # default value for env named test
-   AllowedValues: 
-     - test # now were only care about test 
-     - staging 
-     - production 
+Parameters:
+  Environment:
+    Type: String
+    Default: test
+    AllowedValues:
+      - test
+      - staging
+      - production
 
-Resources: 
- MyS3Bucket: 
-   Type: 'AWS::S3::Bucket'
-   Properties: 
-     BucketName: !Sub '${AWS::StackName}-${Environment}-bucket'
-     Tags: 
-       - Key: Environment
-         Value: !Ref Environment
-       - Key: project
-         Value: GithubActionsTesting 
+Resources:
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-${Environment}-bucket'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
 Outputs:
- BucketName: 
-   Description: 'Name of the created S3 Bucket'
-   Value: !Ref MyS3Bucket
+  BucketName:
+    Description: 'Name of created S3 Bucket'
+    Value: !Ref MyS3Bucket
