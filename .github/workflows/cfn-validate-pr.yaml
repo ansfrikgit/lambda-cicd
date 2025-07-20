@@ -1,0 +1,62 @@
+name: Validate CloudFormation 0n PR 
+
+on : 
+ pull_request:
+     paths:  
+         - 'workflows/**'
+
+  # the wf will be triggered only when we create changes to cf folder 
+
+permissions: # here we give permissions to the gh token to write the pr and read the content 
+  pull-requests: write 
+  contents: read 
+
+jobs: 
+ validate-cfn: # the name of our first job 
+     runs-on: ubuntu-latest
+     steps: 
+           - uses: actions/checkout@v2 # check out our repo code 
+
+           - name: configure AWS credentials
+             uses: aws-actions/configure-aws-credentials@v1 
+             with: 
+                 aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}} 
+                 aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+                 aws-region: us-east-1
+                 
+           - name: Validate Cloudformation template # make sure its formated correctly
+             run: | 
+                 aws cloudformation validate-template --template-body file://cloudformation/s3-bucket.yaml 
+ 
+           - name: Deploy our stack # create a test s3 bucket using unique name based on pr number
+             run: | # well define the stack name and refrence it in the command 
+                 stack_name="pr-test-stack-${{github.event.pull_request.number}}" 
+                 aws cloudformation create-stack --stack-name $stack_name --template-body file://cloudformation/s3-bucket.yaml --parameters ParameterKey=Environment,ParameterValue=test
+
+           - name: Comment on the PR # with test result 
+             uses: actions/github-script@v6
+             with: 
+                 github-token: ${{secrets.GITHUB_TOKEN}}
+                 script: | 
+                     github.rest.issues.createComment({
+                         issue_number: context.issue.number,
+                         owner: context.repo.owner,
+                         repo: context.repo.repo,
+                         body: 'Cloudformation test stack deployed. Stack name: pr-test-stack-${{github.event.pull_request.number}}'
+                     })
+ 
+ Cleanup-on-merge: # when result is good {true} we merge it and it well automaticaly deleted with this job  
+     runs-on: ubuntu-latest
+     if: github.event.pull_request.merged == true 
+     steps:
+           - name: configure AWS credentials
+             uses: aws-actions/configure-aws-credentials@v1 
+             with: 
+                 aws-access-key-id: ${{secrets.AWS_ACCESS_KEY_ID}} 
+                 aws-secret-access-key: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+                 aws-region: us-east-1
+
+           - name: Delate Test Stack 
+             run: | 
+                 stack_name="pr-test-stack-${{github.event.pull_request.number}}" 
+                 aws cloudformation delete-stack --stack-name $stack_name 
